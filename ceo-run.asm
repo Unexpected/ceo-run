@@ -6,10 +6,25 @@
 ;;;;;;;;;;;;;;;
 
   .rsset $0000  ;;start variables at ram location 0
+
+; scrolling variables
 scroll     .rs 1  ; horizontal scroll count
-nametable  .rs 1
-marioPosX  .rs 1
-    
+nametable  .rs 1  ; current nametable for swapping
+
+; controllers
+; button: A B select start up down left right
+; If the bit is 1, that button is pressed.
+buttons1   .rs 1  ; player 1 gamepad buttons, one bit per button
+buttons2   .rs 1  ; player 2 gamepad buttons, one bit per button
+
+; gameplay variables
+playerPosX .rs 1
+playerPosY .rs 1
+playerSpeedX	.rs 1
+playerSpeedY	.rs 1
+
+
+
   .bank 0
   .org $C000 
 
@@ -170,6 +185,18 @@ FillAttrib1Loop:
   DEX
   BNE FillAttrib1Loop
               
+
+InitGame: 
+  ; initial player pos
+  LDA #$40		
+  STA playerPosX
+  LDA #$50
+  STA playerPosY
+
+  ; initial player speed
+  LDA #$00
+  STA playerSpeedX
+  STA playerSpeedY
               
               
   LDA #%10010000   ; enable NMI, sprites from Pattern Table 0, background from Pattern Table 1
@@ -223,36 +250,61 @@ NTSwapCheckDone:
     
   ; run normal game engine code here
   ; reading from controllers, etc
-LatchController:
-  LDA #$01
-  STA $4016
-  LDA #$00
-  STA $4016       ; tell both the controllers to latch buttons
 
+  JSR ReadController1  ;;get the current button data for player 1
+  JSR ReadController2  ;;get the current button data for player 2
 
-ReadA: 
-  LDA $4016       ; player 1 - A
-  AND #%00000001  ; only look at bit 0
-  BEQ ReadADone   ; branch to ReadADone if button is NOT pressed (0)
-                  ; add instructions here to do something when button IS pressed (1)
-  LDA $0203       ; load sprite X position
-  CLC             ; make sure the carry flag is clear
-  ADC #$01        ; A = A + 1
-  STA $0203       ; save sprite X position
-ReadADone:        ; handling this button is done
+GameEngine:  
+;  LDA gamestate
+;  CMP #STATETITLE
+;  BEQ EngineTitle    ;;game is displaying title screen
+    
+;  LDA gamestate
+;  CMP #STATEGAMEOVER
+;  BEQ EngineGameOver  ;;game is displaying ending screen
   
-
-ReadB: 
-  LDA $4016       ; player 1 - B
-  AND #%00000001  ; only look at bit 0
-  BEQ ReadBDone   ; branch to ReadBDone if button is NOT pressed (0)
-                  ; add instructions here to do something when button IS pressed (1)
-  JSR subroutine
-ReadBDone:        ; handling this button is done
+;  LDA gamestate
+;  CMP #STATEPLAYING
+;  BEQ EnginePlaying   ;;game is playing
+GameEngineDone:  
+  
+  JSR UpdateGameState 
   
   RTI              ; return from interrupt
  
 ;;;;;;;;;;;;;;  
+
+ReadController1:
+  LDA #$01
+  STA $4016
+  LDA #$00
+  STA $4016
+  LDX #$08
+ReadController1Loop:
+  LDA $4016
+  LSR A            ; bit0 -> Carry
+  ROL buttons1     ; bit0 <- Carry
+  DEX
+  BNE ReadController1Loop
+  RTS
+  
+ReadController2:
+  LDA #$01
+  STA $4016
+  LDA #$00
+  STA $4016
+  LDX #$08
+ReadController2Loop:
+  LDA $4017
+  LSR A            ; bit0 -> Carry
+  ROL buttons2     ; bit0 <- Carry
+  DEX
+  BNE ReadController2Loop
+  RTS  
+
+UpdateGameState:
+  RTS
+
   
   .bank 1
   .org $E000
