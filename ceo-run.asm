@@ -25,28 +25,24 @@ playerState .rs 1
 ; player cannont jump more than MAX_JUMP_TIME
 playerJumpTime .rs 1
 
-playerPosX 	.rs 1
-playerPosY 	.rs 1
+playerPosX 	.rs 1		; bot left pixel
+playerPosY 	.rs 1		; bot left pixel
+
 playerSpeedX	.rs 1
 playerSpeedY	.rs 1
 
-
-playerSpriteHi	.rs 1
-playerSpriteLo	.rs 1	
-
 ; Constants
-MAX_SPEED = $03 			; max speed for player
-JUMP_SPEED = $04
-MAX_JUMP_TIME = $0A		; max number of frames to jump  
+MAX_SPEED = $03 		; max speed for player
+JUMP_SPEED = $06
+FALL_SPEED = $FC		; FALL_SPEED == -4
+MAX_JUMP_TIME = $10		; max number of frames to jump  
+
+PLAYER_HEIGHT = $10		; player meta-sprite height (used for collision)
+PLAYER_WIDTH = $10		; player meta-sprite height (used for collision)
 
 PLAYER_STATE_RUNNING = $00
 PLAYER_STATE_FALLING = $01
 PLAYER_STATE_JUMPING = $02
-
-PLAYER_SPRITES = $04	; number of sprites for player
-SPRITE_POS_X = $03		; sprite is Y NUMBER ATTR X 
-SPRITE_POS_Y = $00		; sprite is Y NUMBER ATTR X 
-
 
   .bank 0
   .org $C000 
@@ -214,13 +210,6 @@ InitGame:
   LDA #$00
   STA playerSpeedX
   STA playerSpeedY
-  
-  LDA #$02
-  STA playerSpriteHi
-  LDA #$00
-  STA playerSpriteLo
-  
-  
   
   LDA #%10010000   ; enable NMI, sprites from Pattern Table 0, background from Pattern Table 1
   STA $2000
@@ -400,7 +389,7 @@ JumpDone:
   BNE FallDone
 Fall: 
   LDX playerSpeedY
-  CPX #$FD						; check if speedY if already falling at max speed
+  CPX #FALL_SPEED				; check if speedY if already falling at max speed
   BEQ FallDone
   DEC playerSpeedY
 FallDone: 
@@ -413,10 +402,12 @@ CheckCollision:
   LDA playerState
   CMP #PLAYER_STATE_FALLING		; player is jumping
   BNE CheckGroundCollisionDone
-CheckGroundCollision:
+CheckGroundCollision: 			; if y >= blockPos && y < blockPos + blockHeight
   LDA playerPosY
-  CMP #$D0
-  BNE CheckCollisionDone
+  CMP #$B0						; blockPos == B0
+  BCS CheckCollisionDone
+  CMP #$A0						; blockPos == B0
+  BCC CheckCollisionDone
   LDX #$00
   STX playerSpeedY
   STX playerJumpTime
