@@ -18,7 +18,13 @@ sourceLow  .rs 1  ; source for column data
 sourceHigh .rs 1
 columnNumber .rs 1  ; which column of level data to draw
 
+; random generator variable
+seed 	.rs 1
 
+; function variables
+functionParam1	.rs 1
+functionParam2	.rs 1
+functionOutput	.rs 1
 
 ; controllers
 ; button: A B select start up down left right
@@ -48,7 +54,13 @@ platformLength	.rs 1
 MAX_SPEED = $03 		; max speed for player
 JUMP_SPEED = $06
 FALL_SPEED = $FB		; FALL_SPEED == -5
-MAX_JUMP_TIME = $10		; max number of frames to jump  
+MAX_JUMP_TIME = $10		; max number of frames to jump
+PLATFORM_MIN_DISTANCE_X = $02
+PLATFORM_MAX_DISTANCE_X = $08
+PLATFORM_MIN_HEIGHT = $04
+PLATFORM_MAX_HEIGHT = $13
+PLATFORM_MIN_LENGTH = $03
+PLATFORM_MAX_LENGTH = $08
 
 PLAYER_HEIGHT = $10		; player meta-sprite height (used for collision)
 PLAYER_WIDTH = $10		; player meta-sprite height (used for collision)
@@ -244,6 +256,8 @@ InitGame:
   LDA #$0C
   STA platformLength
 
+  LDA #$BB
+  STA seed
   
   LDA #%10010000   ; enable NMI, sprites from Pattern Table 0, background from Pattern Table 1
   STA $2000
@@ -529,26 +543,6 @@ DrawNewColumn:
   ADC #$20          ; add high byte of nametable base address ($2000)
   STA columnHigh    ; now address = $20 or $24 for nametable 0 or 1
 
-;  LDA columnNumber  ; column number * 32 = column data offset
-;  ASL A
-;  ASL A
-;  ASL A
-;  ASL A
-;  ASL A             
-;  STA sourceLow
-;  LDA columnNumber
-;  LSR A
-;  LSR A
-;  LSR A
-;  STA sourceHigh
-  
-;  LDA sourceLow       ; column data start + offset = address to load column data from
-;  CLC 
-;  ADC #LOW(columnData)
-;  STA sourceLow
-;  LDA sourceHigh
-;  ADC #HIGH(columnData)
-;  STA sourceHigh
 
 DrawColumn:
   LDA #%00000100        ; set to increment +32 mode
@@ -594,14 +588,38 @@ Draw:
   STY platformLength
   JMP DrawColumnLoopDone
 
-PrepareNewPlatform: 
-  ; Init next platform coordinates
-  LDA #$08
+PrepareNewPlatform: 		; Init next platform coordinates
+  JSR FunctionRandomGenerator 
+  LDA functionOutput		; get random number
+
+  STA functionParam1		
+  LDA #PLATFORM_MAX_DISTANCE_X
+  STA functionParam2		
+  JSR FunctionModulo		; apply modulo MAX_DISTANCE_X
+  LDA functionOutput
+  ADC #PLATFORM_MIN_DISTANCE_X ; add MIN_DISTANCE
   STA platformPosX
-  ;LDA platformPosY
-  ;ASL A
-  ;STA platformPosY
-  LDA #$0C
+
+  JSR FunctionRandomGenerator 
+  LDA functionOutput		; get random number
+
+  STA functionParam1		
+  LDA #PLATFORM_MAX_HEIGHT
+  STA functionParam2		
+  JSR FunctionModulo		; apply modulo PLATFORM_MAX_HEIGHT
+  LDA functionOutput
+  ADC #PLATFORM_MIN_HEIGHT ; add PLATFORM_MIN_HEIGHT
+  STA platformPosY
+  
+  JSR FunctionRandomGenerator 
+  LDA functionOutput		; get random number
+
+  STA functionParam1		
+  LDA #PLATFORM_MAX_LENGTH
+  STA functionParam2		
+  JSR FunctionModulo		; apply modulo PLATFORM_MAX_LENGTH
+  LDA functionOutput
+  ADC #PLATFORM_MIN_LENGTH ; add PLATFORM_MIN_LENGTH
   STA platformLength
   
 DrawColumnLoopDone:
@@ -652,8 +670,24 @@ DrawNewAttributesLoopDone:
 
   RTS  
   
-  
-  
+FunctionRandomGenerator: 
+  LDA seed
+  ASL A
+  BCC FunctionRandomGeneratorNoEor
+  EOR #$1d
+FunctionRandomGeneratorNoEor:  
+  STA seed
+  STA functionOutput
+  RTS
+
+FunctionModulo:
+  LDA functionParam1  ; memory addr A
+  SEC
+Modulus:	
+  SBC functionParam2  ; memory addr B
+  BCS Modulus
+  ADC functionParam2
+  STA functionOutput
   
 ;;;;;;;;;;;;;;;;;;;;;;;;;; unused ?  
 AccelerateX:
