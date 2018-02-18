@@ -9,6 +9,8 @@
 
 ; scrolling variables
 scroll     .rs 1  ; horizontal scroll count
+lastScroll .rs 1  ; horizontal scroll count on previous frame
+lastColumn .rs 1  ; last column drawn
 nametable  .rs 1  ; which nametable to use, 0 or 1
 columnLow  .rs 1  ; low byte of new column address
 columnHigh .rs 1  ; high byte of new column address
@@ -210,6 +212,12 @@ FillAttrib1Loop:
 ;****************************************************************************
 			  
 InitGame: 
+  ; initial scroll variables
+  LDA #$00
+  STA scroll
+  STA lastScroll
+  STA lastColumn
+
   ; initial player pos
   LDA #$40		
   STA playerPosX
@@ -254,13 +262,12 @@ Forever:
 
 NMI:
   LDA scroll
-  ADC #$01 ;playerSpeedX
-  ;INC scroll       ; add one to our scroll variable each frame
-NTSwapCheck:
-  ;LDA scroll       ; check if the scroll just wrapped from 255 to 0
-  ;BNE NTSwapCheckDone
-  CMP scroll
+  STA lastScroll
+  CLC
+  ADC playerSpeedX ; add current player speed to scroll each frame
   STA scroll
+NTSwapCheck:
+  CMP lastScroll		; check if scroll went over 255 (if scroll < lastScroll)
   BCS NTSwapCheckDone
   
 NTSwap:
@@ -274,21 +281,32 @@ NewAttribCheck:
   LDA scroll
   AND #%00011111            ; check for multiple of 32
   BNE NewAttribCheckDone    ; if low 5 bits = 0, time to write new attribute bytes
-  jsr DrawNewAttributes
+  JSR DrawNewAttributes
 NewAttribCheckDone:
 
 
 NewColumnCheck:
+  LDA lastScroll
+  LSR A
+  LSR A
+  LSR A						; divide by 8
+  STA lastColumn
   LDA scroll
-  AND #%00000111            ; throw away higher bits to check for multiple of 8
-  BNE NewColumnCheckDone    ; done if lower bits != 0
+  LSR A
+  LSR A
+  LSR A						; divide by 8
+  CMP lastColumn			; if greater than lastColumn, we need to draw a new one
+  BEQ NewColumnCheckDone
+  
+  ; AND #%00000111            ; throw away higher bits to check for multiple of 8
+  ; BNE NewColumnCheckDone    ; done if lower bits != 0
   JSR DrawNewColumn         ; if lower bits = 0, time for new column
   
-  lda columnNumber
-  clc
-  adc #$01             ; go to next column
-  and #%01111111       ; only 128 columns of data, throw away top bit to wrap
-  sta columnNumber
+  LDA columnNumber
+  CLC
+  ADC #$01             ; go to next column
+  AND #%01111111       ; only 128 columns of data, throw away top bit to wrap
+  STA columnNumber
 NewColumnCheckDone:
 
   LDA #$00
