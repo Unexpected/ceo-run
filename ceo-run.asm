@@ -290,7 +290,7 @@ NewColumnCheck:
   LSR A
   LSR A
   LSR A						; divide by 8
-  STA lastColumn
+  STA lastColumn			; store value as "lastColumn" 
   LDA scroll
   LSR A
   LSR A
@@ -298,8 +298,6 @@ NewColumnCheck:
   CMP lastColumn			; if greater than lastColumn, we need to draw a new one
   BEQ NewColumnCheckDone
   
-  ; AND #%00000111            ; throw away higher bits to check for multiple of 8
-  ; BNE NewColumnCheckDone    ; done if lower bits != 0
   JSR DrawNewColumn         ; if lower bits = 0, time for new column
   
   LDA columnNumber
