@@ -231,7 +231,7 @@ InitGame:
   ; Init next platform coordinates
   LDA #$03
   STA platformPosX
-  LDA #$DD
+  LDA #$08
   STA platformPosY
   LDA #$0C
   STA platformLength
@@ -254,7 +254,7 @@ Forever:
 
 NMI:
   LDA scroll
-  ADC playerSpeedX
+  ADC #$01 ;playerSpeedX
   ;INC scroll       ; add one to our scroll variable each frame
 NTSwapCheck:
   ;LDA scroll       ; check if the scroll just wrapped from 255 to 0
@@ -545,12 +545,12 @@ DrawColumn:
   STA $2006             ; write the low byte of column address
   LDX #$1E              ; copy 30 bytes
   
-  LDA platformPosX		; check if we are drawing a platform
-  CMP #$00
+  LDY platformPosX		; check if we are drawing a platform
+  CPY #$00
   BEQ DrawColumnLoop    ; draw a platform
   
-  DEC A
-  STA platformPosX		; decrement platform distance
+  DEY
+  STY platformPosX		; decrement platform distance
 DrawEmptyColumnLoop: 
   LDA #$24
   STA $2007	
@@ -560,7 +560,7 @@ DrawEmptyColumnLoop:
   
 DrawColumnLoop:
   CPX platformPosY
-  BNE LoadBlock
+  BEQ LoadBlock
   LDA #$24		
   JMP Draw
 LoadBlock: 
@@ -571,20 +571,20 @@ Draw:
   BNE DrawColumnLoop
   
   ; last platform block ?
-  LDA platformLength
-  CMP #$00
+  LDY platformLength
+  CPY #$00
   BEQ PrepareNewPlatform
-  DEC A
-  STA platformLength
+  DEY
+  STY platformLength
   JMP DrawColumnLoopDone
 
 PrepareNewPlatform: 
   ; Init next platform coordinates
-  LDA #$03
+  LDA #$08
   STA platformPosX
-  LDA platformPosY
-  ASL A
-  STA platformPosY
+  ;LDA platformPosY
+  ;ASL A
+  ;STA platformPosY
   LDA #$0C
   STA platformLength
   
