@@ -73,6 +73,10 @@ PLAYER_STATE_FALLING = $01
 PLAYER_STATE_JUMPING = $02
 
 BACKGROUND_BLUE_SKY = $24
+BACKGROUND_BLK_TOP_LEFT = $53
+BACKGROUND_BLK_TOP_RIGHT = $54
+BACKGROUND_BLK_BOT_LEFT = $55
+BACKGROUND_BLK_BOT_RIGHT = $56
 
   .bank 0
   .org $C000 
@@ -157,7 +161,7 @@ LoadBackground:
 LoadBackgroundLoop:
   CPY #$08   			; Drawing line 08 ?
   BNE DrawBlueSky
-DrawBlock: 
+LoadBlock: 
   LDA #$45
 DrawBlueSky: 
   STA $2007             ; write to PPU
@@ -181,11 +185,6 @@ LoadBackground2:
   LDX #$20
   LDA #BACKGROUND_BLUE_SKY
 LoadBackgroundLoop2:
-  CPY #$0C   			; Drawing line 0C ?
-  BNE DrawBlueSky2
-DrawBlock2: 
-  LDA #$53
-DrawBlueSky2: 
   STA $2007             ; write to PPU
   LDA #BACKGROUND_BLUE_SKY
   DEX
@@ -612,13 +611,33 @@ DrawEmptyColumnLoop:
   
 DrawColumnLoop:
   CPX platformPosY
-  BEQ LoadBlock
-  LDA #BACKGROUND_BLUE_SKY		
-  JMP Draw
-LoadBlock: 
+  BEQ DrawBlock				; if platform, draw block
+  JMP DrawEmpty				; else draw blue
+
+DrawBlock: 
+  LDA lastColumn
+  AND #%00000001
+  BEQ DrawRightBlock
+
+DrawLeftBlock: 
+  LDA #BACKGROUND_BLK_TOP_LEFT
+  STA $2007	
+  DEX
+  LDA #BACKGROUND_BLK_BOT_LEFT  				
+  STA $2007	
+  DEX
+  BNE DrawColumnLoop
+DrawRightBlock: 
+  LDA #BACKGROUND_BLK_TOP_RIGHT
+  STA $2007	
+  DEX
+  LDA #BACKGROUND_BLK_BOT_RIGHT  				
+  STA $2007	
+  DEX
+  BNE DrawColumnLoop
   
-  LDA #$45  	; if platform : draw blue except for platform sprite
-Draw:   
+DrawEmpty:   
+  LDA #BACKGROUND_BLUE_SKY
   STA $2007					; else draw blue
   DEX
   BNE DrawColumnLoop
