@@ -260,41 +260,12 @@ InitGame:
   LDA #$0B
   STA platformLength
 
-  LDX #$00
-  LDA #$02
+  LDX #$10
+  LDA #$B0
+InitCollisionsLoop:
   STA platformCollisions, X
-  INX
-  STA platformCollisions, X
-  INX
-  STA platformCollisions, X
-  INX
-  STA platformCollisions, X
-  INX
-  STA platformCollisions, X
-  INX
-  STA platformCollisions, X
-  INX
-  LDA #$42
-  STA platformCollisions, X
-  INX
-  STA platformCollisions, X
-  INX
-  STA platformCollisions, X
-  INX
-  STA platformCollisions, X
-  INX
-  STA platformCollisions, X
-  INX
-  LDA #$C6
-  STA platformCollisions, X
-  INX
-  STA platformCollisions, X
-  INX
-  STA platformCollisions, X
-  INX
-  STA platformCollisions, X
-  INX
-  STA platformCollisions, X
+  DEX
+  BNE InitCollisionsLoop
   
   LDA #$BB
   STA seed
@@ -528,8 +499,8 @@ CheckGroundCollision: 			; if y >= blockPos && y < blockPos + blockHeight
   LDA playerPosY
   CMP platformCollisions, X; #$B0						; blockPos == B0
   BCS CheckCollisionDone
-  ;CMP #$A0						; blockPos == B0
-  ;BCC CheckCollisionDone
+  CMP #$A0						; blockPos == B0
+  BCC CheckCollisionDone
   LDX #$00
   STX playerSpeedY
   STX playerJumpTime
