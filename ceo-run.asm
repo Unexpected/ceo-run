@@ -42,6 +42,7 @@ playerJumpTime .rs 1
 
 playerPosX 	.rs 1		; bot left pixel
 playerPosY 	.rs 1		; bot left pixel
+playerDistance	.rs 1
 
 playerSpeedX	.rs 1
 playerSpeedY	.rs 1
@@ -49,6 +50,8 @@ playerSpeedY	.rs 1
 platformPosX	.rs 1
 platformPosY	.rs 1
 platformLength	.rs 1
+
+platformCollisions	.rs	16
 
 ; Constants
 MAX_SPEED = $03 		; max speed for player
@@ -68,6 +71,8 @@ PLAYER_WIDTH = $10		; player meta-sprite height (used for collision)
 PLAYER_STATE_RUNNING = $00
 PLAYER_STATE_FALLING = $01
 PLAYER_STATE_JUMPING = $02
+
+BACKGROUND_BLUE_SKY = $24
 
   .bank 0
   .org $C000 
@@ -148,7 +153,7 @@ LoadBackground:
   STA $2006             ; write the low byte of $2000 address
   LDY #$1E              ; start out at 0
   LDX #$20
-  LDA #$24
+  LDA #BACKGROUND_BLUE_SKY
 LoadBackgroundLoop:
   CPY #$08   			; Drawing line 08 ?
   BNE DrawBlueSky
@@ -156,7 +161,7 @@ DrawBlock:
   LDA #$45
 DrawBlueSky: 
   STA $2007             ; write to PPU
-  LDA #$24
+  LDA #BACKGROUND_BLUE_SKY
   DEX
   BNE LoadBackgroundLoop
   LDX #$20
@@ -168,13 +173,13 @@ DrawBlueSky:
 						
 LoadBackground2:
   LDA $2002             ; read PPU status to reset the high/low latch
-  LDA #$24
+  LDA #BACKGROUND_BLUE_SKY
   STA $2006             ; write the high byte of $2400 address
   LDA #$00
   STA $2006             ; write the low byte of $2400 address
   LDY #$1E              
   LDX #$20
-  LDA #$24
+  LDA #BACKGROUND_BLUE_SKY
 LoadBackgroundLoop2:
   CPY #$0C   			; Drawing line 0C ?
   BNE DrawBlueSky2
@@ -182,7 +187,7 @@ DrawBlock2:
   LDA #$53
 DrawBlueSky2: 
   STA $2007             ; write to PPU
-  LDA #$24
+  LDA #BACKGROUND_BLUE_SKY
   DEX
   BNE LoadBackgroundLoop2
   LDX #$20
@@ -256,6 +261,42 @@ InitGame:
   LDA #$0C
   STA platformLength
 
+  LDX #$00
+  LDA #$02
+  STA platformCollisions, X
+  INX
+  STA platformCollisions, X
+  INX
+  STA platformCollisions, X
+  INX
+  STA platformCollisions, X
+  INX
+  STA platformCollisions, X
+  INX
+  STA platformCollisions, X
+  INX
+  LDA #$42
+  STA platformCollisions, X
+  INX
+  STA platformCollisions, X
+  INX
+  STA platformCollisions, X
+  INX
+  STA platformCollisions, X
+  INX
+  STA platformCollisions, X
+  INX
+  LDA #$C6
+  STA platformCollisions, X
+  INX
+  STA platformCollisions, X
+  INX
+  STA platformCollisions, X
+  INX
+  STA platformCollisions, X
+  INX
+  STA platformCollisions, X
+  
   LDA #$BB
   STA seed
   
@@ -484,11 +525,12 @@ CheckCollision:
   CMP #PLAYER_STATE_FALLING		; player is jumping
   BNE CheckGroundCollisionDone
 CheckGroundCollision: 			; if y >= blockPos && y < blockPos + blockHeight
+  LDX lastColumn
   LDA playerPosY
-  CMP #$B0						; blockPos == B0
+  CMP platformCollisions, X; #$B0						; blockPos == B0
   BCS CheckCollisionDone
-  CMP #$A0						; blockPos == B0
-  BCC CheckCollisionDone
+  ;CMP #$A0						; blockPos == B0
+  ;BCC CheckCollisionDone
   LDX #$00
   STX playerSpeedY
   STX playerJumpTime
@@ -562,7 +604,7 @@ DrawColumn:
   DEY
   STY platformPosX		; decrement platform distance
 DrawEmptyColumnLoop: 
-  LDA #$24
+  LDA #BACKGROUND_BLUE_SKY
   STA $2007	
   DEX
   BNE DrawEmptyColumnLoop
@@ -571,9 +613,10 @@ DrawEmptyColumnLoop:
 DrawColumnLoop:
   CPX platformPosY
   BEQ LoadBlock
-  LDA #$24		
+  LDA #BACKGROUND_BLUE_SKY		
   JMP Draw
 LoadBlock: 
+  
   LDA #$45  	; if platform : draw blue except for platform sprite
 Draw:   
   STA $2007					; else draw blue
