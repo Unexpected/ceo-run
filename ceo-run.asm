@@ -257,7 +257,7 @@ InitGame:
   STA platformPosX
   LDA #$08
   STA platformPosY
-  LDA #$0C
+  LDA #$0B
   STA platformLength
 
   LDX #$00
@@ -661,6 +661,10 @@ PrepareNewPlatform: 		; Init next platform coordinates
   LDA functionOutput
   ADC #PLATFORM_MIN_DISTANCE_X ; add MIN_DISTANCE
   STA platformPosX
+  AND #%00000001
+  BEQ PrepareNewPlatformPosXDone
+  INC platformPosX
+PrepareNewPlatformPosXDone:
 
   JSR FunctionRandomGenerator 
   LDA functionOutput		; get random number
@@ -683,7 +687,10 @@ PrepareNewPlatform: 		; Init next platform coordinates
   LDA functionOutput
   ADC #PLATFORM_MIN_LENGTH ; add PLATFORM_MIN_LENGTH
   STA platformLength
-  
+  AND #%00000001
+  BNE PrepareNewPlatformLengthDone
+  INC platformLength
+PrepareNewPlatformLengthDone:
 DrawColumnLoopDone:
 
   RTS
