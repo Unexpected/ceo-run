@@ -270,7 +270,7 @@ InitGame:
 
   ; Init collision array
   LDX #$1F
-  LDA #$B0
+  LDA #$14
 InitCollisionsLoop:
   STA platformCollisions, X
   DEX
@@ -358,7 +358,7 @@ NewColumnCheckDone:
   STA $2005
   
   ;;This is the PPU clean up section, so rendering the next frame starts properly.
-  LDA #%10011000   ; enable NMI, sprites from Pattern Table 0, background from Pattern Table 1
+  LDA #%10010000   ; enable NMI, sprites from Pattern Table 0, background from Pattern Table 1
   ORA nametable    ; select correct nametable for bit 0
   STA $2000
   
@@ -513,11 +513,10 @@ CheckCollision:
 LoopDone: 
   TAX
   LDA platformCollisions, X
-  STA debugValue2
   ASL A
   ASL A
   ASL A
-  STA debugValue
+  TAY
   CMP #$00						; if no platform, no collision
   BEQ CheckCollisionDone
   CMP playerPosY 				; if blockPos >= y : carry is set
@@ -530,6 +529,7 @@ LoopDone:
   STX playerJumpTime
   LDX #PLAYER_STATE_RUNNING
   STX playerState
+  STY playerPosY
 CheckGroundCollisionDone:
 CheckCollisionDone: 
   RTS
@@ -555,6 +555,22 @@ GoingUpDone:
   STA $0200
   LDA playerPosX
   STA $0203
+  LDA playerPosY
+  STA $0204
+  LDA playerPosX
+  ADC #$07
+  STA $0207
+  LDA playerPosY
+  ADC #$07
+  STA $0208
+  LDA playerPosX
+  STA $020B
+  LDA playerPosY
+  ADC #$07
+  STA $020C
+  LDA playerPosX
+  ADC #$07
+  STA $020F
 UpdatePlayerDone: 
   RTS
 
@@ -596,7 +612,6 @@ DrawNothingDone:
 ;  LDX platformCollisionsPos
 ;  LDA platformCollisions, X
 ;  STA $0205
-
 
   LDA platformCollisionsPos
   ASL A
@@ -642,6 +657,8 @@ StoreCollisionsValue:
 LoadPlatformHeight: 
   LDA #$1D
   SBC platformPosY			; if platformPosX > 0: load platform height
+  LSR A						; round up to an odd number
+  ASL A						
 LoadPlatformHeightDone:
   STA platformCollisions, X ; store platform height or 0 if collision array
   INX						; increase platformPos
