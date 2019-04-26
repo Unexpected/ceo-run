@@ -7,6 +7,7 @@
 
   .rsset $0000  ;;start variables at ram location 0
 
+; Variable $0000
 ; scrolling variables
 scroll     .rs 1  ; horizontal scroll count
 lastScroll .rs 1  ; horizontal scroll count on previous frame
@@ -36,6 +37,7 @@ buttons2   .rs 1  ; player 2 gamepad buttons, one bit per button
 ; player state - see PLAYER_STATE_XXX constants
 playerState .rs 1
 
+; Variable $0010
 ; number of frames with button A pressed for jump
 ; player cannont jump more than MAX_JUMP_TIME
 playerJumpTime .rs 1
@@ -51,18 +53,24 @@ platformPosX	.rs 1
 platformPosY	.rs 1
 platformLength	.rs 1
 
-platformCollisions	.rs	16
+; Variable 25 -> 57 ($0019 -> $0038)
+platformCollisions	.rs	32
+platformCollisionsPos .rs 1
+
+; Variable $003A
+debugValue	.rs 1
+debugValue2	.rs 1
 
 ; Constants
-MAX_SPEED = $03 		; max speed for player
+MAX_SPEED = $02 		; max speed for player
 JUMP_SPEED = $06
-FALL_SPEED = $FB		; FALL_SPEED == -5
+FALL_SPEED = $FB		; FALL_SPEED == $FB == -5
 MAX_JUMP_TIME = $10		; max number of frames to jump
-PLATFORM_MIN_DISTANCE_X = $02
+PLATFORM_MIN_DISTANCE_X = $04
 PLATFORM_MAX_DISTANCE_X = $08
 PLATFORM_MIN_HEIGHT = $04
 PLATFORM_MAX_HEIGHT = $13
-PLATFORM_MIN_LENGTH = $03
+PLATFORM_MIN_LENGTH = $04
 PLATFORM_MAX_LENGTH = $08
 
 PLAYER_HEIGHT = $10		; player meta-sprite height (used for collision)
@@ -260,12 +268,17 @@ InitGame:
   LDA #$0B
   STA platformLength
 
-  LDX #$10
+  ; Init collision array
+  LDX #$1F
   LDA #$B0
 InitCollisionsLoop:
   STA platformCollisions, X
   DEX
   BNE InitCollisionsLoop
+  STA platformCollisions, X
+
+  LDA #$00
+  STA platformCollisionsPos
   
   LDA #$BB
   STA seed
@@ -325,11 +338,6 @@ NewColumnCheck:
   
   JSR DrawNewColumn         ; if lower bits = 0, time for new column
   
-  LDA columnNumber
-  CLC
-  ADC #$01             ; go to next column
-  AND #%01111111       ; only 128 columns of data, throw away top bit to wrap
-  STA columnNumber
 NewColumnCheckDone:
 
   LDA #$00
@@ -350,7 +358,7 @@ NewColumnCheckDone:
   STA $2005
   
   ;;This is the PPU clean up section, so rendering the next frame starts properly.
-  LDA #%10010000   ; enable NMI, sprites from Pattern Table 0, background from Pattern Table 1
+  LDA #%10011000   ; enable NMI, sprites from Pattern Table 0, background from Pattern Table 1
   ORA nametable    ; select correct nametable for bit 0
   STA $2000
   
@@ -430,6 +438,8 @@ UpdateGameState:
   JSR CheckCollision
   JSR UpdatePlayer
   
+  JSR DebugCollision
+  
   RTS
 
 ; Update vertical speed based on controller input
@@ -491,15 +501,29 @@ ApplyPhysicsDone:
 
 ; Check collisions with platforms
 CheckCollision: 
-  LDA playerState
-  CMP #PLAYER_STATE_FALLING		; player is jumping
-  BNE CheckGroundCollisionDone
-CheckGroundCollision: 			; if y >= blockPos && y < blockPos + blockHeight
-  LDX lastColumn
-  LDA playerPosY
-  CMP platformCollisions, X; #$B0						; blockPos == B0
+;  LDA playerState
+;  CMP #PLAYER_STATE_FALLING		; player is jumping
+;  BNE CheckGroundCollisionDone
+;CheckGroundCollision: 			; if y >= blockPos && y < blockPos + blockHeight
+  LDA platformCollisionsPos
+  ADC #$07
+  CMP #$20
+  BCC LoopDone
+  SBC #$20
+LoopDone: 
+  TAX
+  LDA platformCollisions, X
+  STA debugValue2
+  ASL A
+  ASL A
+  ASL A
+  STA debugValue
+  CMP #$00						; if no platform, no collision
+  BEQ CheckCollisionDone
+  CMP playerPosY 				; if blockPos >= y : carry is set
   BCS CheckCollisionDone
-  CMP #$A0						; blockPos == B0
+  ADC #$10
+  CMP playerPosY				; if blockPos - 16 >= y : carry is set
   BCC CheckCollisionDone
   LDX #$00
   STX playerSpeedY
@@ -534,6 +558,60 @@ GoingUpDone:
 UpdatePlayerDone: 
   RTS
 
+DebugCollision: 
+  RTS
+  LDX #$00
+  LDY #$04              ; start at 0
+DebugLoop:
+  TXA
+  ASL A
+  ASL A
+  ASL A
+  STA $0200, Y          ; store into RAM address ($0200 + x)
+  INY
+  LDA platformCollisions, X
+  CMP #$00
+  BNE DrawNothingDone
+  LDA #$24  
+DrawNothingDone: 
+  STA $0200, Y          ; store into RAM address ($0200 + x)
+  INY
+  LDA #$00
+  STA $0200, Y          ; store into RAM address ($0200 + x)
+  INY
+  LDA #$10
+  STA $0200, Y          ; store into RAM address ($0200 + x)
+  INY
+  INX; X = X + 1
+  CPX #$20              ; Compare X to hex $20, decimal 32
+  BNE DebugLoop   		; Branch to LoadSpritesLoop if compare was Not Equal to zero
+                        ; if compare was equal to 16, keep going down
+              
+
+
+
+;  LDA #$10
+;  STA $0204
+;  STA $0207
+;  LDX platformCollisionsPos
+;  LDA platformCollisions, X
+;  STA $0205
+
+
+  LDA platformCollisionsPos
+  ASL A
+  ASL A
+  ASL A
+  ADC #$40
+  STA $0208
+
+  LDA #$1A
+  STA $020B
+;  LDA platformCollisionsPos
+  STA $0209
+  
+  RTS
+  
 ;****************************************************************************
 ;****************************                  ******************************
 ;**************************** GRAPHIC ENGINE   ******************************
@@ -554,6 +632,24 @@ DrawNewColumn:
   CLC
   ADC #$20          ; add high byte of nametable base address ($2000)
   STA columnHigh    ; now address = $20 or $24 for nametable 0 or 1
+
+StoreCollisionsValue: 
+  LDX platformCollisionsPos	; write platformPosX in collision platform array
+  LDA #$00
+  LDY platformPosX			; if platformPosX == 0: no platform at this pos
+  CPY #$00					; we'll save #$00 in platformCollision
+  BNE LoadPlatformHeightDone
+LoadPlatformHeight: 
+  LDA #$1D
+  SBC platformPosY			; if platformPosX > 0: load platform height
+LoadPlatformHeightDone:
+  STA platformCollisions, X ; store platform height or 0 if collision array
+  INX						; increase platformPos
+  CPX #$20					; if platformPos == 32 then platformPos = 0
+  BNE ResetPlatformPosDone  
+  LDX #$00
+ResetPlatformPosDone: 
+  STX platformCollisionsPos
 
 
 DrawColumn:
@@ -578,6 +674,7 @@ DrawEmptyColumnLoop:
   STA $2007	
   DEX
   BNE DrawEmptyColumnLoop
+  
   JMP DrawColumnLoopDone
   
 DrawColumnLoop:
