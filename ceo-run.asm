@@ -63,13 +63,13 @@ debugValue2	.rs 1
 
 ; Constants
 MAX_SPEED = $02 		; max speed for player
-JUMP_SPEED = $06
+JUMP_SPEED = $04
 FALL_SPEED = $FB		; FALL_SPEED == $FB == -5
-MAX_JUMP_TIME = $10		; max number of frames to jump
+MAX_JUMP_TIME = $12		; max number of frames to jump
 PLATFORM_MIN_DISTANCE_X = $04
-PLATFORM_MAX_DISTANCE_X = $08
+PLATFORM_MAX_DISTANCE_X = $06
 PLATFORM_MIN_HEIGHT = $04
-PLATFORM_MAX_HEIGHT = $13
+PLATFORM_MAX_HEIGHT = $12
 PLATFORM_MIN_LENGTH = $04
 PLATFORM_MAX_LENGTH = $08
 
@@ -501,24 +501,28 @@ ApplyPhysicsDone:
 
 ; Check collisions with platforms
 CheckCollision: 
-;  LDA playerState
-;  CMP #PLAYER_STATE_FALLING		; player is jumping
-;  BNE CheckGroundCollisionDone
 ;CheckGroundCollision: 			; if y >= blockPos && y < blockPos + blockHeight
-  LDA platformCollisionsPos
-  ADC #$07
-  CMP #$20
+  LDA platformCollisionsPos		; load current platform pos
+  ADC #$07						; add 7 to get "player pos"
+  CMP #$20						; module 32
   BCC LoopDone
   SBC #$20
 LoopDone: 
-  TAX
-  LDA platformCollisions, X
+  TAX							; store player platform pos in X
+  LDA platformCollisions, X     ; read block pos
+  ASL A							; block pos is in blocks, multiply by 8 to get pixels 
   ASL A
   ASL A
-  ASL A
-  TAY
+  TAY							; store in Y in case there's a collision
   CMP #$00						; if no platform, no collision
-  BEQ CheckCollisionDone
+  BNE CheckNoMoreGroundDone
+  LDA playerState
+  CMP #PLAYER_STATE_RUNNING
+  BNE CheckCollisionDone
+  LDA #PLAYER_STATE_FALLING
+  STA playerState
+  JMP CheckCollisionDone
+CheckNoMoreGroundDone:  
   CMP playerPosY 				; if blockPos >= y : carry is set
   BCS CheckCollisionDone
   ADC #$10
