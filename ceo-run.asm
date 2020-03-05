@@ -167,8 +167,23 @@ LoadBackground:
   LDX #$20
   LDA #BACKGROUND_BLUE_SKY
 LoadBackgroundLoop:
-  CPY #$08   			; Drawing line 08 ?
+  CPY #$12   			; Drawing line 04
+  BEQ DrawStartMessage
+  CPY #$08   			; Drawing line 08
   BNE DrawBlueSky
+  BEQ LoadBlock
+DrawStartMessage: 		; print message "press B to START !"
+  LDX #$00              ; start out at 0
+DrawStartMessageLoop:
+  LDA message, x        ; load data from address (message + the value in x)
+  STA $2007             ; write to PPU
+  INX                   ; X = X + 1
+  CPX #$20              ; Compare X to hex $20, decimal 32 - copying 32 bytes
+  BNE DrawStartMessageLoop  ; Branch to DrawStartMessageLoop if compare was Not Equal to zero
+                        ; if compare was equal to 32, keep going down  
+  LDA #BACKGROUND_BLUE_SKY
+  DEY
+  BNE LoadBackgroundLoop
 LoadBlock: 
   LDA #$45
 DrawBlueSky: 
@@ -181,8 +196,7 @@ DrawBlueSky:
   BNE LoadBackgroundLoop  ; Branch to LoadBackgroundLoop if compare was Not Equal to zero
                         ; if compare was equal to 128, keep going down
 
-
-						
+; Load second background screen
 LoadBackground2:
   LDA $2002             ; read PPU status to reset the high/low latch
   LDA #BACKGROUND_BLUE_SKY
@@ -255,7 +269,7 @@ InitGame:
   STA playerJumpTime
   
   ; initial player speed
-  LDA #MAX_SPEED
+  LDA #$00
   STA playerSpeedX
   LDA #$00
   STA playerSpeedY
@@ -444,6 +458,18 @@ UpdateGameState:
 
 ; Update vertical speed based on controller input
 HandleInput: 
+  LDA playerSpeedX
+  CMP #$00
+  BNE GameStarted 
+  
+  LDA buttons1
+  AND #%01000000
+  BEQ HandleInputDone
+  
+  LDA #MAX_SPEED
+  STA playerSpeedX
+
+GameStarted:
   LDA buttons1
   AND #%10000000
   BEQ HandleNoJump		; player doesn't press A
@@ -871,6 +897,9 @@ playerSprites:
   .db $80, $33, $00, $88   ;sprite 1
   .db $88, $34, $00, $80   ;sprite 2
   .db $88, $35, $00, $88   ;sprite 3
+
+message:
+  .db $24,$24,$24,$24,$24,$24,$24,$24,$19,$1B,$0E,$1C,$1C,$24,$0B,$24,$1D,$18,$24,$1C,$1D,$0A,$1B,$1D,$2B,$24,$24,$24,$24,$24,$24,$24,$24
 
 attribute:
   .db %00000000, %00010000, %01010000, %00010000, %00000000, %00000000, %00000000, %00110000
