@@ -462,6 +462,8 @@ HandleInput:
   CMP #$00
   BNE GameStarted 
   
+  INC seed
+  
   LDA buttons1
   AND #%01000000
   BEQ HandleInputDone
